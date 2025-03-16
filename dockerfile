@@ -1,23 +1,28 @@
-# Use official .NET 8 runtime as a base image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 443
-
-# Use official .NET 8 SDK image for building the app
+# Build Stage - Using .NET SDK 8.0 to build the app
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
+WORKDIR /app
 
 # Copy project files and restore dependencies
-COPY ["ToDoMVC.csproj", "./"]
+COPY *.sln ./
+COPY *.csproj ./
 RUN dotnet restore
 
-# Copy the rest of the project files and build
-COPY . .
-RUN dotnet publish -c Release -o /app/publish
+# Copy everything and build the application
+COPY . ./
+RUN dotnet publish ToDoMVC.csproj -c Release -o /app/publish
 
-# Final stage: runtime
-FROM base AS final
+# Runtime Stage - Using .NET 8 Runtime for deployment
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
+
+# Copy published app from build stage
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "ToDoMVC.dll"]
+
+# Run EF Core migrations (if dotnet-ef is configured)
+RUN dotnet ef database update || echo "Skipping migration"
+
+# Expose port 8080
+EXPOSE 8080
+
+# Run the application
+CMD ["dotnet", "ToDoMVC.dll"]
