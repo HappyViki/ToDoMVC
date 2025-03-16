@@ -22,6 +22,10 @@ WORKDIR /app
 # Copy published app from build stage
 COPY --from=build /app/publish .
 
+# Ensure persistent SQLite database directory
+RUN mkdir -p /var/data
+VOLUME [ "/var/data" ]
+
 # Run EF Core migrations (if dotnet-ef is configured)
 RUN dotnet ef database update || echo "Skipping migration"
 
